@@ -1,6 +1,7 @@
 from pydantic import BaseSettings
 
 class Settings(BaseSettings):
+    env: str = "development"
     groq_api_key: str
     redis_url: str
     pinecone_api_key: str
