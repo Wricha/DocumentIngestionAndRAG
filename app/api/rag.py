@@ -21,8 +21,8 @@ async def get_redis():
         await r.close()
 
 class ChatRequest(BaseModel):
-    session_id: Optional[str] = None
     query: str
+    session_id: str = None
     top_k: int = Field(default=3, ge=1, le=20)
 
 class ChatResponse(BaseModel):

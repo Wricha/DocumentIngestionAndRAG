@@ -1,5 +1,6 @@
 from fastapi import APIRouter, File, UploadFile, Form, Depends, HTTPException
 from io import BytesIO
+import uuid
 
 from app.core.extract import extract_text_from_pdf, extract_text_from_txt
 from app.core.utils import chunk_sentences, chunk_sliding
@@ -19,8 +20,7 @@ def get_vector_adapter():
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
-    source: str = Form(...),
-    metadata: str = Form(None),
+    source: str = Form(None),
     chunking_strategy: str = Form("sliding"),
     chunk_size: int = Form(500),
     overlap: int = Form(50),
@@ -46,6 +46,9 @@ async def upload_document(
     else:
         raise HTTPException(status_code=400, detail="Invalid chunking strategy")
 
+    # --- Generate session ID ---
+    session_id = str(uuid.uuid4())
+
     # --- Get embeddings ---
     embeddings_raw = await embedding_provider.embed(chunks)
 
@@ -57,20 +60,20 @@ async def upload_document(
         else:
             embeddings_clean.append([float(x) for x in emb])
 
-    # --- Prepare ids and metadata ---
+    # --- Prepare IDs and metadata for Pinecone ---
     ids = [f"{file.filename}_chunk_{i}" for i in range(len(chunks))]
-    metadatas = [{"source": source, "metadata": metadata, "text": chunk} for chunk in chunks]
-
-    print("Example embedding:", embeddings_clean[0][:5], type(embeddings_clean[0][0]))
-
+    metadatas = [{"text_preview": chunk, "source": file.filename, "session_id": session_id} for chunk in chunks]
 
     # --- Upsert vectors into Pinecone ---
     await vector_adapter.upsert(ids=ids, vectors=embeddings_clean, metadatas=metadatas)
 
     # --- Save document info to database ---
     async with AsyncSessionLocal() as session:
-        doc = Documents(source=source or file.filename, metadata={"num_chunks": len(chunks)})
+        doc = Documents(
+            source=source or file.filename,
+            metadata={"num_chunks": len(chunks), "session_id": session_id, "text_preview": chunks[0]}
+        )
         session.add(doc)
         await session.commit()
 
-    return {"message": f"Uploaded and processed {file.filename} with {len(chunks)} chunks."}
+    return {"message": f"Uploaded and processed {file.filename} with {len(chunks)} chunks.", "session_id": session_id}
