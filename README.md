@@ -50,6 +50,12 @@ JSON Body:
     "time": "15:30",
 }
 
+GET /rag/book
+---
+PUT /rag/book/{booking_id}
+---
+DELETE /rag/book/{booking_id}
+---
 
 
 
