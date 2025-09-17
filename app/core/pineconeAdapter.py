@@ -30,7 +30,6 @@ class PineconeVectorAdapter:
             ])
     )
 
-
     async def query(
             self,
             vector: List[float],

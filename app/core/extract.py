@@ -3,7 +3,7 @@ from io import BytesIO
 from PyPDF2 import PdfReader
 
 def extract_text_from_pdf(upload_file: BytesIO) -> str:
-    upload_file.seek(0)  # make sure we're at the start
+    upload_file.seek(0)
     pdf = PdfReader(upload_file)
     text = ""
     for page in pdf.pages:
