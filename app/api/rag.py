@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Dict, Any
 from app.core.embeddings import HFEmbeddingProvider
 from app.core.pineconeAdapter import PineconeVectorAdapter
@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 import uuid
 import json
 import redis.asyncio as aioredis
+from sqlalchemy import text
 from groq import Groq
 
 router = APIRouter()
@@ -34,6 +35,12 @@ class BookingRequest(BaseModel):
     email: str
     date: str
     time: str
+
+class BookingUpdateRequest(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    date: str | None = None
+    time: str | None = None
 
 def get_embedding_provider():
     return HFEmbeddingProvider(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -116,3 +123,32 @@ async def book_interview(request: BookingRequest):
         await session.commit()
 
     return {"status": "booked", "name": request.name, "email": request.email, "date": request.date, "time": request.time}
+
+@router.get("/book", response_model=List[BookingRequest])
+async def get_bookings():
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(text("SELECT * FROM bookings"))
+        bookings = result.fetchall()
+    return bookings
+
+@router.put("/book/{booking_id}")
+async def update_booking(booking_id: int, request: BookingUpdateRequest):
+    async with AsyncSessionLocal() as session:
+        b = await session.get(Booking, booking_id)
+        if not b:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        for field, value in request.dict(exclude_unset=True).items():
+            setattr(b, field, value)
+        await session.commit()
+        await session.refresh(b)
+    return {"status": "updated", "booking": b}
+
+@router.delete("/book/{booking_id}")
+async def delete_booking(booking_id: int):
+    async with AsyncSessionLocal() as session:
+        b = await session.get(Booking, booking_id)
+        if not b:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        await session.delete(b)
+        await session.commit()
+    return {"status": "deleted", "booking_id": booking_id}
