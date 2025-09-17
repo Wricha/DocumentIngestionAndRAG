@@ -1,0 +1,7 @@
+GROQ_API_KEY = "groq_api_key"
+REDIS_URL = "redis_url"
+PINECONE_API_KEY="pinecone_api_key"
+PINECONE_INDEX_NAME="pinecone_index"
+PINECONE_CLOUD="cloud_name"
+PINECONE_REGION="pinecone_region"
+DATABASE_URL = "postgresql_url"
