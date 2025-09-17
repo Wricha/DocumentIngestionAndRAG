@@ -10,7 +10,6 @@ from app.core.db import AsyncSessionLocal, Documents
 
 router = APIRouter()
 
-# Dependency providers
 def get_embedding_provider():
     return HFEmbeddingProvider(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
@@ -27,10 +26,9 @@ async def upload_document(
     embedding_provider: HFEmbeddingProvider = Depends(get_embedding_provider),
     vector_adapter: PineconeVectorAdapter = Depends(get_vector_adapter),
 ):
-    # --- Read file content ---
+
     data = await file.read()
 
-    # --- Extract text ---
     if file.content_type == "application/pdf" or file.filename.lower().endswith(".pdf"):
         text = extract_text_from_pdf(BytesIO(data))
     elif file.content_type == "text/plain" or file.filename.lower().endswith(".txt"):
@@ -38,7 +36,6 @@ async def upload_document(
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    # --- Chunk text ---
     if chunking_strategy == "sliding":
         chunks = chunk_sliding(text, chunk_size=chunk_size, overlap=overlap)
     elif chunking_strategy == "sentences":
@@ -46,28 +43,22 @@ async def upload_document(
     else:
         raise HTTPException(status_code=400, detail="Invalid chunking strategy")
 
-    # --- Generate session ID ---
     session_id = str(uuid.uuid4())
 
-    # --- Get embeddings ---
     embeddings_raw = await embedding_provider.embed(chunks)
 
-    # --- Ensure embeddings are lists of floats ---
     embeddings_clean = []
     for emb in embeddings_raw:
-        if hasattr(emb, "tolist"):  # e.g., numpy array
+        if hasattr(emb, "tolist"):
             embeddings_clean.append([float(x) for x in emb.tolist()])
         else:
             embeddings_clean.append([float(x) for x in emb])
 
-    # --- Prepare IDs and metadata for Pinecone ---
     ids = [f"{file.filename}_chunk_{i}" for i in range(len(chunks))]
     metadatas = [{"text_preview": chunk, "source": file.filename, "session_id": session_id} for chunk in chunks]
 
-    # --- Upsert vectors into Pinecone ---
     await vector_adapter.upsert(ids=ids, vectors=embeddings_clean, metadatas=metadatas)
 
-    # --- Save document info to database ---
     async with AsyncSessionLocal() as session:
         doc = Documents(
             source=source or file.filename,
