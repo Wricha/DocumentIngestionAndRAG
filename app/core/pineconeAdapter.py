@@ -18,17 +18,18 @@ class PineconeVectorAdapter:
         self.index = self.pc.Index(settings.pinecone_index_name)
 
     async def upsert(self,
-                    ids: List[str],
-                    vectors: List[List[float]],
-                    metadatas: List[Dict[str, Any]]):
+                 ids: List[str],
+                 vectors: List[List[float]],
+                 metadatas: List[Dict[str, Any]]):
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(
             None,
             lambda: self.index.upsert(vectors=[
-                {"id": vid, "values": vectors, "metadata": metadatas[i]}
+                {"id": vid, "values": vectors[i], "metadata": metadatas[i]}
                 for i, vid in enumerate(ids)
             ])
-        )
+    )
+
 
     async def query(
             self,

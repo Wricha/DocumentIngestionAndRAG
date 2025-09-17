@@ -2,13 +2,14 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from typing import List, Optional, Dict, Any
 from app.core.embeddings import HFEmbeddingProvider
 from app.core.pineconeAdapter import PineconeVectorAdapter
-from app.core.config import get_settings, settings
+from app.core.config import settings
 from app.core.db import AsyncSessionLocal, Booking
 from pydantic import BaseModel, Field
 import uuid
 import json
 import asyncio
 import redis.asyncio as aioredis
+from groq import Groq
 
 router = APIRouter()
 
@@ -36,10 +37,12 @@ class BookingRequest(BaseModel):
     time: str
 
 def get_embedding_provider():
-    return HFEmbeddingProvider(model_name=get_settings().embedding_model_name)
+    return HFEmbeddingProvider(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 def get_vector_adapter():
     return PineconeVectorAdapter()
+
+groq_client = Groq(api_key=settings.groq_api_key)
 
 async def append_to_redis_history(redis, session_id: str, role:str, text: str):
     key = f"chat:{session_id}"
@@ -68,19 +71,33 @@ async def chat_endpoint(
     context = [r["metadata"].get("text_preview", "") for r in results]
 
     memory = await get_redis_history(redis, session_id)
-    prompt = """You are an assistant that answers based only on the information in CONTEXT and the user's question.
+    context_str = "\n---\n".join(context)
+    history_str = "\n".join([f"{m['role']}: {m['text']}" for m in memory])
+
+    prompt = f"""You are an assistant that answers only based on CONTEXT and user's question.
 
 CONTEXT:
-{}
+{context_str}
 
 CONVERSATION HISTORY:
-{}
+{history_str}
 
 QUESTION:
-{}
-""".format("\n---\n".join(context), "\n".join([f"{m['role']}: {m['text']}" for m in memory]), request.query)
-    
-    answer = f"(SIMULATED ANSWER) Based on {len(results)} documents.\n\n" + ("\n\n".join(context[:3]))
+{request.query}
+
+Answer concisely:
+"""
+    completion = groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": "You are a helpful RAG assistant."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.2,
+        max_tokens=400
+    )
+
+    answer = completion.choices[0].message.content.strip()
 
     await append_to_redis_history(redis, session_id, "assistant", answer)
 

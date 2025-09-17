@@ -1,6 +1,9 @@
+from sqlalchemy import Column, Integer, String, JSON, DateTime
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
+import datetime
 
 engine = create_async_engine(settings.database_url, echo=False)
 AsyncSessionLocal = sessionmaker(
@@ -12,8 +15,8 @@ class Documents(Base):
     __tablename__="documents"
     id = Column(Integer, primary_key=True, index=True)
     source = Column(String, index=True)
-    metadata = Column(JSON)
-    created_at = Column(DateTime, default = datetime.datetime.utcnow)
+    meta = Column("metadata", JSON)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class Booking(Base):
     __tablename__ = "bookings"
@@ -22,7 +25,7 @@ class Booking(Base):
     email = Column(String, nullable=False)
     date = Column(String, nullable=False)
     time = Column(String, nullable=False)
-    metadata = Column(JSON, nullable=False)
+    meta = Column("metadata",JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 async def init_db():
