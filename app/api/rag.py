@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Body, Depends, HTTPException
-from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, Depends
+from typing import List, Dict, Any
 from app.core.embeddings import HFEmbeddingProvider
 from app.core.pineconeAdapter import PineconeVectorAdapter
 from app.core.config import settings
@@ -7,7 +7,6 @@ from app.core.db import AsyncSessionLocal, Booking
 from pydantic import BaseModel, Field
 import uuid
 import json
-import asyncio
 import redis.asyncio as aioredis
 from groq import Groq
 
