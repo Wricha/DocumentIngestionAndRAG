@@ -12,6 +12,7 @@ def clean_text(text: str) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
+# Sliding window chunking
 def chunk_sliding(text: str, chunk_size:int=500, overlap: int = 50) -> List[str]:
     text = clean_text(text)
     chunks = []
@@ -26,6 +27,7 @@ def chunk_sliding(text: str, chunk_size:int=500, overlap: int = 50) -> List[str]
 
     return chunks
 
+# Sentence-based chunking
 def chunk_sentences(text: str, max_chunk_size: int = 500) -> List[str]:
     sentences = sent_tokenize(text)
     chunks = []
