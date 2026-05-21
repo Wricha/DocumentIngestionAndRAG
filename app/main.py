@@ -1,13 +1,8 @@
 from fastapi import FastAPI
-from app.api.ingest import router as ingest_router
-from app.api.rag import router as rag_router
-from app.core.config import settings
+from app.api.upload import router as upload_router
+from app.api.chat import router as chat_router
 
-app = FastAPI(title="FastAPI RAG Backend")
+app = FastAPI(title="AuraRAG Chatbot Backend")
 
-app.include_router(ingest_router, prefix="/ingest", tags=["ingest"])
-app.include_router(rag_router, prefix="/rag", tags=["rag"])
-
-@app.get("/")
-async def root():
-    return {"status": "ok", "service": "fastapi-rag-backend", "env": settings.env}
+app.include_router(upload_router, prefix="/rag", tags=["upload"])
+app.include_router(chat_router, prefix="/rag", tags=["chat"])

@@ -20,6 +20,7 @@ def get_vector_adapter():
 async def upload_document(
     file: UploadFile = File(...),
     source: str = Form(None),
+    session_id: str = Form(None),
     chunking_strategy: str = Form("sliding"),
     chunk_size: int = Form(500),
     overlap: int = Form(50),
@@ -29,10 +30,11 @@ async def upload_document(
 
     data = await file.read()
 
-    if file.content_type == "application/pdf" or file.filename.lower().endswith(".pdf"):
+    filename_lower = file.filename.lower()
+    if file.content_type == "application/pdf" or filename_lower.endswith(".pdf"):
         text = extract_text_from_pdf(BytesIO(data))
-    elif file.content_type == "text/plain" or file.filename.lower().endswith(".txt"):
-        text = extract_text_from_txt(BytesIO(data))
+    elif file.content_type in ["text/plain", "text/markdown"] or filename_lower.endswith((".txt", ".md")):
+        text = extract_text_from_txt(data)
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
@@ -43,7 +45,7 @@ async def upload_document(
     else:
         raise HTTPException(status_code=400, detail="Invalid chunking strategy")
 
-    session_id = str(uuid.uuid4())
+    session_id = session_id or str(uuid.uuid4())
 
     embeddings_raw = await embedding_provider.embed(chunks)
 
